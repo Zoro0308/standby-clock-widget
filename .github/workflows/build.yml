@@ -1,0 +1,1238 @@
+name: Build StandBy Clock Widget APK
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Generate Android Widget Project Files
+        run: |
+          mkdir -p standby_widget_build
+          cd standby_widget_build
+          cat << 'EOF_FILE' > "settings.gradle"
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "StandByClockWidget"
+          include ':app'
+          EOF_FILE
+
+          cat << 'EOF_FILE' > "build.gradle"
+          plugins {
+              id 'com.android.application' version '8.5.2' apply false
+          }
+          EOF_FILE
+
+          cat << 'EOF_FILE' > "gradle.properties"
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=false
+          EOF_FILE
+
+          mkdir -p "app"
+          cat << 'EOF_FILE' > "app/build.gradle"
+          plugins {
+              id 'com.android.application'
+          }
+          
+          android {
+              namespace 'com.standby.clockwidget'
+              compileSdk 34
+          
+              defaultConfig {
+                  applicationId "com.standby.clockwidget"
+                  minSdk 31
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+          
+              buildTypes {
+                  debug {
+                      minifyEnabled false
+                  }
+                  release {
+                      minifyEnabled false
+                      signingConfig signingConfigs.debug
+                  }
+              }
+          
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          
+          dependencies {
+          }
+          EOF_FILE
+
+          mkdir -p "app/src/main"
+          cat << 'EOF_FILE' > "app/src/main/AndroidManifest.xml"
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+          
+              <application
+                  android:allowBackup="true"
+                  android:icon="@drawable/ic_launcher"
+                  android:roundIcon="@drawable/ic_launcher"
+                  android:label="@string/app_name"
+                  android:supportsRtl="true"
+                  android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+          
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:label="@string/app_name">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+          
+                  <receiver
+                      android:name=".StandByWidgetProvider"
+                      android:exported="true"
+                      android:label="@string/widget_title">
+                      <intent-filter>
+                          <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                          <action android:name="android.intent.action.DATE_CHANGED" />
+                          <action android:name="android.intent.action.TIME_SET" />
+                          <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                          <action android:name="android.intent.action.LOCALE_CHANGED" />
+                          <action android:name="com.standby.clockwidget.ACTION_CYCLE_THEME" />
+                          <action android:name="com.standby.clockwidget.ACTION_OPEN_CALENDAR" />
+                      </intent-filter>
+                      <meta-data
+                          android:name="android.appwidget.provider"
+                          android:resource="@xml/standby_widget_info" />
+                  </receiver>
+          
+              </application>
+          </manifest>
+          EOF_FILE
+
+          mkdir -p "app/src/main/res/values"
+          cat << 'EOF_FILE' > "app/src/main/res/values/strings.xml"
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">StandBy Clock Widget</string>
+              <string name="widget_title">StandBy Clock &amp; Calendar</string>
+              <string name="widget_description">Live ticking analog clock and monthly calendar with Dark, Light, and Transparent modes (Tap clock to switch theme).</string>
+          </resources>
+          EOF_FILE
+
+          mkdir -p "app/src/main/res/xml"
+          cat << 'EOF_FILE' > "app/src/main/res/xml/standby_widget_info.xml"
+          <?xml version="1.0" encoding="utf-8"?>
+          <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+              android:minWidth="280dp"
+              android:minHeight="130dp"
+              android:targetCellWidth="4"
+              android:targetCellHeight="2"
+              android:minResizeWidth="180dp"
+              android:minResizeHeight="90dp"
+              android:maxResizeWidth="900dp"
+              android:maxResizeHeight="600dp"
+              android:updatePeriodMillis="1800000"
+              android:initialLayout="@layout/widget_dark"
+              android:resizeMode="horizontal|vertical"
+              android:widgetCategory="home_screen"
+              android:description="@string/widget_description" />
+          EOF_FILE
+
+          mkdir -p "app/src/main/res/drawable"
+          cat << 'EOF_FILE' > "app/src/main/res/drawable/ic_launcher.xml"
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <path
+                  android:fillColor="#000000"
+                  android:pathData="M18,0 L90,0 A18,18 0 0,1 108,18 L108,90 A18,18 0 0,1 90,108 L18,108 A18,18 0 0,1 0,90 L0,18 A18,18 0 0,1 18,0 Z" />
+              <path
+                  android:strokeColor="#48484A"
+                  android:strokeWidth="2.5"
+                  android:pathData="M54,14 A40,40 0 1,1 54,94 A40,40 0 1,1 54,14 Z" />
+              <path
+                  android:strokeColor="#FFFFFF"
+                  android:strokeWidth="4.5"
+                  android:strokeLineCap="round"
+                  android:pathData="M54,54 L36,62 M54,54 L76,68" />
+              <path
+                  android:strokeColor="#F59E23"
+                  android:strokeWidth="2.2"
+                  android:strokeLineCap="round"
+                  android:pathData="M62,46 L30,78" />
+              <path
+                  android:fillColor="#F59E23"
+                  android:pathData="M54,51 A3,3 0 1,1 54,57 A3,3 0 1,1 54,51 Z" />
+          </vector>
+          EOF_FILE
+
+          mkdir -p "app/src/main/res/drawable"
+          cat << 'EOF_FILE' > "app/src/main/res/drawable/bg_dark.xml"
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android"
+              android:shape="rectangle">
+              <solid android:color="#000000" />
+              <corners android:radius="26dp" />
+          </shape>
+          EOF_FILE
+
+          mkdir -p "app/src/main/res/drawable"
+          cat << 'EOF_FILE' > "app/src/main/res/drawable/bg_light.xml"
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android"
+              android:shape="rectangle">
+              <solid android:color="#F2F2F7" />
+              <corners android:radius="26dp" />
+          </shape>
+          EOF_FILE
+
+          mkdir -p "app/src/main/res/drawable"
+          cat << 'EOF_FILE' > "app/src/main/res/drawable/bg_transparent.xml"
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android"
+              android:shape="rectangle">
+              <solid android:color="#00000000" />
+              <corners android:radius="26dp" />
+          </shape>
+          EOF_FILE
+
+          mkdir -p "app/src/main/res/drawable"
+          cat << 'EOF_FILE' > "app/src/main/res/drawable/dial_dark.xml"
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="800dp"
+              android:height="800dp"
+              android:viewportWidth="400"
+              android:viewportHeight="400">
+              <path
+                  android:strokeColor="#48484A"
+                  android:strokeWidth="2.8"
+                  android:strokeLineCap="round"
+                  android:pathData="M217.35,34.91L219.02,19.00M234.51,37.63L237.84,21.98M251.30,42.12L256.24,26.91M267.52,48.35L274.03,33.73M297.57,65.70L306.98,52.76M311.08,76.64L321.78,64.75M323.36,88.92L335.25,78.22M334.30,102.43L347.24,93.02M351.65,132.48L366.27,125.97M357.88,148.70L373.09,143.76M362.37,165.49L378.02,162.16M365.09,182.65L381.00,180.98M365.09,217.35L381.00,219.02M362.37,234.51L378.02,237.84M357.88,251.30L373.09,256.24M351.65,267.52L366.27,274.03M334.30,297.57L347.24,306.98M323.36,311.08L335.25,321.78M311.08,323.36L321.78,335.25M297.57,334.30L306.98,347.24M267.52,351.65L274.03,366.27M251.30,357.88L256.24,373.09M234.51,362.37L237.84,378.02M217.35,365.09L219.02,381.00M182.65,365.09L180.98,381.00M165.49,362.37L162.16,378.02M148.70,357.88L143.76,373.09M132.48,351.65L125.97,366.27M102.43,334.30L93.02,347.24M88.92,323.36L78.22,335.25M76.64,311.08L64.75,321.78M65.70,297.57L52.76,306.98M48.35,267.52L33.73,274.03M42.12,251.30L26.91,256.24M37.63,234.51L21.98,237.84M34.91,217.35L19.00,219.02M34.91,182.65L19.00,180.98M37.63,165.49L21.98,162.16M42.12,148.70L26.91,143.76M48.35,132.48L33.73,125.97M65.70,102.43L52.76,93.02M76.64,88.92L64.75,78.22M88.92,76.64L78.22,64.75M102.43,65.70L93.02,52.76M132.48,48.35L125.97,33.73M148.70,42.12L143.76,26.91M165.49,37.63L162.16,21.98M182.65,34.91L180.98,19.00" />
+              <path
+                  android:strokeColor="#FFFFFF"
+                  android:strokeWidth="4.4"
+                  android:strokeLineCap="round"
+                  android:pathData="M200.00,34.00L200.00,18.00M283.00,56.24L291.00,42.38M343.76,117.00L357.62,109.00M366.00,200.00L382.00,200.00M343.76,283.00L357.62,291.00M283.00,343.76L291.00,357.62M200.00,366.00L200.00,382.00M117.00,343.76L109.00,357.62M56.24,283.00L42.38,291.00M34.00,200.00L18.00,200.00M56.24,117.00L42.38,109.00M117.00,56.24L109.00,42.38" />
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:fillType="evenOdd"
+                  android:pathData="M271.13,73.76L266.42,73.76L259.64,78.12L259.64,82.67L266.03,78.56L266.18,78.56L266.18,101.07L271.13,101.07L271.13,73.76Z" />
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:fillType="evenOdd"
+                  android:pathData="M304.02,148.84L322.76,148.84L322.76,144.70L310.85,144.70L310.85,144.52L315.58,139.74C320.85,134.65 322.31,132.14 322.35,129.07C322.31,124.52 318.60,121.16 313.13,121.16C307.68,121.16 303.84,124.52 303.89,129.69L308.59,129.69C308.55,126.93 310.31,125.16 313.06,125.19C315.64,125.16 317.56,126.76 317.58,129.32C317.56,131.62 316.19,133.24 313.50,135.96L304.02,145.26L304.02,148.84Z" />
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:fillType="evenOdd"
+                  android:pathData="M330.67,214.03C336.49,214.03 340.74,210.67 340.76,206.07C340.74,202.65 338.61,200.20 334.82,199.65L334.82,199.44C337.74,198.81 339.72,196.60 339.72,193.54C339.72,189.37 336.18,185.97 330.76,185.97C325.42,185.97 321.32,189.13 321.25,193.71L326.00,193.71C326.03,191.41 328.18,189.98 330.72,190.00C333.24,189.98 334.94,191.54 334.97,193.82C334.94,196.21 332.97,197.79 330.17,197.79L327.73,197.79L327.73,201.60L330.17,201.60C333.58,201.60 335.64,203.34 335.66,205.81C335.64,208.22 333.57,209.87 330.65,209.87C327.88,209.87 325.77,208.44 325.66,206.23L320.67,206.23C320.76,210.84 324.88,214.03 330.67,214.03Z" />
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:fillType="evenOdd"
+                  android:pathData="M302.56,273.59L315.59,273.59L315.59,278.66L320.32,278.66L320.32,273.59L323.83,273.59L323.83,269.52L320.32,269.52L320.32,251.34L314.16,251.34L302.56,269.65L302.56,273.59ZM315.64,269.52L307.63,269.52L307.63,269.30L315.44,256.95L315.64,256.95L315.64,269.52Z" />
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:fillType="evenOdd"
+                  android:pathData="M265.58,326.43C271.37,326.43 275.38,322.51 275.40,317.09C275.38,311.82 271.75,308.04 266.79,308.01C264.56,308.04 262.60,308.91 261.59,310.12L261.45,310.12L262.21,302.88L273.97,302.88L273.97,298.74L258.13,298.74L256.70,312.81L261.17,313.55C262.08,312.54 263.80,311.86 265.45,311.87C268.44,311.90 270.61,314.10 270.61,317.20C270.61,320.25 268.52,322.41 265.58,322.41C263.11,322.41 261.13,320.88 260.98,318.63L256.18,318.63C256.31,323.16 260.24,326.43 265.58,326.43Z" />
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:fillType="evenOdd"
+                  android:pathData="M200.95,344.06C206.81,344.09 210.78,340.04 210.76,334.65C210.78,329.47 207.09,325.74 202.30,325.74C199.37,325.74 196.79,327.17 195.49,329.53L195.29,329.53C195.31,323.70 197.40,320.19 201.21,320.21C203.55,320.19 205.12,321.57 205.64,323.74L210.52,323.74C209.91,319.24 206.34,315.93 201.21,315.91C194.64,315.93 190.49,321.38 190.49,330.80C190.49,340.83 195.68,344.02 200.95,344.06ZM200.91,340.04C197.98,340.04 195.83,337.65 195.83,334.78C195.85,331.92 198.06,329.50 200.95,329.50C203.84,329.50 205.98,331.83 205.96,334.76C205.98,337.73 203.79,340.04 200.91,340.04Z" />
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:fillType="evenOdd"
+                  android:pathData="M128.05,326.24L133.21,326.24L144.79,303.15L144.79,298.93L126.20,298.93L126.20,303.07L139.66,303.07L139.66,303.25L128.05,326.24Z" />
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:fillType="evenOdd"
+                  android:pathData="M88.04,279.03C93.96,279.03 98.19,275.76 98.19,271.33C98.19,267.92 95.66,265.07 92.49,264.54L92.49,264.33C95.25,263.74 97.17,261.25 97.18,258.28C97.17,254.09 93.31,250.97 88.04,250.97C82.75,250.97 78.89,254.09 78.91,258.28C78.89,261.25 80.78,263.74 83.59,264.33L83.59,264.54C80.37,265.07 77.87,267.92 77.89,271.33C77.87,275.76 82.08,279.03 88.04,279.03ZM88.04,275.22C84.96,275.22 82.96,273.50 82.99,270.97C82.96,268.38 85.11,266.52 88.04,266.52C90.95,266.52 93.09,268.38 93.10,270.97C93.09,273.50 91.10,275.22 88.04,275.22ZM88.04,262.77C85.52,262.76 83.70,261.14 83.72,258.77C83.70,256.41 85.46,254.83 88.04,254.85C90.60,254.83 92.34,256.41 92.38,258.77C92.34,261.14 90.55,262.76 88.04,262.77Z" />
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:fillType="evenOdd"
+                  android:pathData="M70.34,185.93C64.42,185.92 60.49,189.96 60.51,195.36C60.49,200.53 64.16,204.25 68.97,204.25C71.92,204.25 74.48,202.82 75.78,200.46L75.98,200.46C75.98,206.32 73.85,209.81 70.07,209.80C67.73,209.81 66.13,208.44 65.63,206.29L60.73,206.29C61.33,210.78 64.91,214.08 70.07,214.08C76.63,214.08 80.79,208.63 80.77,199.20C80.79,189.18 75.59,185.99 70.34,185.93ZM70.38,189.96C73.30,189.94 75.43,192.37 75.43,195.21C75.43,198.07 73.18,200.50 70.31,200.50C67.41,200.50 65.30,198.20 65.30,195.27C65.30,192.28 67.47,189.94 70.38,189.96Z" />
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:fillType="evenOdd"
+                  android:pathData="M81.66,121.27L76.94,121.27L70.17,125.63L70.17,130.18L76.55,126.07L76.70,126.07L76.70,148.58L81.66,148.58L81.66,121.27ZM94.90,149.10C101.49,149.10 105.43,143.93 105.44,134.94C105.43,126.04 101.47,120.90 94.90,120.90C88.36,120.90 84.40,126.04 84.40,134.94C84.38,143.90 88.31,149.10 94.90,149.10ZM94.90,144.94C91.49,144.92 89.38,141.51 89.41,134.94C89.39,128.45 91.51,125.02 94.90,125.02C98.30,125.02 100.43,128.45 100.45,134.94C100.43,141.51 98.32,144.92 94.90,144.94Z" />
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:fillType="evenOdd"
+                  android:pathData="M134.15,73.76L129.43,73.76L122.66,78.12L122.66,82.67L129.04,78.56L129.19,78.56L129.19,101.07L134.15,101.07L134.15,73.76ZM148.12,73.76L143.40,73.76L136.63,78.12L136.63,82.67L143.01,78.56L143.16,78.56L143.16,101.07L148.12,101.07L148.12,73.76Z" />
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:fillType="evenOdd"
+                  android:pathData="M195.10,56.53L190.39,56.53L183.62,60.89L183.62,65.44L190.00,61.33L190.15,61.33L190.15,83.84L195.10,83.84L195.10,56.53ZM198.42,83.84L217.16,83.84L217.16,79.70L205.25,79.70L205.25,79.52L209.98,74.74C215.25,69.65 216.72,67.14 216.75,64.07C216.72,59.52 213.01,56.16 207.53,56.16C202.08,56.16 198.24,59.52 198.29,64.69L202.99,64.69C202.95,61.93 204.71,60.16 207.46,60.19C210.04,60.16 211.97,61.76 211.99,64.32C211.97,66.62 210.60,68.24 207.91,70.96L198.42,80.26L198.42,83.84Z" />
+          </vector>
+          EOF_FILE
+
+          mkdir -p "app/src/main/res/drawable"
+          cat << 'EOF_FILE' > "app/src/main/res/drawable/dial_light.xml"
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="800dp"
+              android:height="800dp"
+              android:viewportWidth="400"
+              android:viewportHeight="400">
+              <path
+                  android:strokeColor="#AEAEB2"
+                  android:strokeWidth="2.8"
+                  android:strokeLineCap="round"
+                  android:pathData="M217.35,34.91L219.02,19.00M234.51,37.63L237.84,21.98M251.30,42.12L256.24,26.91M267.52,48.35L274.03,33.73M297.57,65.70L306.98,52.76M311.08,76.64L321.78,64.75M323.36,88.92L335.25,78.22M334.30,102.43L347.24,93.02M351.65,132.48L366.27,125.97M357.88,148.70L373.09,143.76M362.37,165.49L378.02,162.16M365.09,182.65L381.00,180.98M365.09,217.35L381.00,219.02M362.37,234.51L378.02,237.84M357.88,251.30L373.09,256.24M351.65,267.52L366.27,274.03M334.30,297.57L347.24,306.98M323.36,311.08L335.25,321.78M311.08,323.36L321.78,335.25M297.57,334.30L306.98,347.24M267.52,351.65L274.03,366.27M251.30,357.88L256.24,373.09M234.51,362.37L237.84,378.02M217.35,365.09L219.02,381.00M182.65,365.09L180.98,381.00M165.49,362.37L162.16,378.02M148.70,357.88L143.76,373.09M132.48,351.65L125.97,366.27M102.43,334.30L93.02,347.24M88.92,323.36L78.22,335.25M76.64,311.08L64.75,321.78M65.70,297.57L52.76,306.98M48.35,267.52L33.73,274.03M42.12,251.30L26.91,256.24M37.63,234.51L21.98,237.84M34.91,217.35L19.00,219.02M34.91,182.65L19.00,180.98M37.63,165.49L21.98,162.16M42.12,148.70L26.91,143.76M48.35,132.48L33.73,125.97M65.70,102.43L52.76,93.02M76.64,88.92L64.75,78.22M88.92,76.64L78.22,64.75M102.43,65.70L93.02,52.76M132.48,48.35L125.97,33.73M148.70,42.12L143.76,26.91M165.49,37.63L162.16,21.98M182.65,34.91L180.98,19.00" />
+              <path
+                  android:strokeColor="#1C1C1E"
+                  android:strokeWidth="4.4"
+                  android:strokeLineCap="round"
+                  android:pathData="M200.00,34.00L200.00,18.00M283.00,56.24L291.00,42.38M343.76,117.00L357.62,109.00M366.00,200.00L382.00,200.00M343.76,283.00L357.62,291.00M283.00,343.76L291.00,357.62M200.00,366.00L200.00,382.00M117.00,343.76L109.00,357.62M56.24,283.00L42.38,291.00M34.00,200.00L18.00,200.00M56.24,117.00L42.38,109.00M117.00,56.24L109.00,42.38" />
+              <path
+                  android:fillColor="#1C1C1E"
+                  android:fillType="evenOdd"
+                  android:pathData="M271.13,73.76L266.42,73.76L259.64,78.12L259.64,82.67L266.03,78.56L266.18,78.56L266.18,101.07L271.13,101.07L271.13,73.76Z" />
+              <path
+                  android:fillColor="#1C1C1E"
+                  android:fillType="evenOdd"
+                  android:pathData="M304.02,148.84L322.76,148.84L322.76,144.70L310.85,144.70L310.85,144.52L315.58,139.74C320.85,134.65 322.31,132.14 322.35,129.07C322.31,124.52 318.60,121.16 313.13,121.16C307.68,121.16 303.84,124.52 303.89,129.69L308.59,129.69C308.55,126.93 310.31,125.16 313.06,125.19C315.64,125.16 317.56,126.76 317.58,129.32C317.56,131.62 316.19,133.24 313.50,135.96L304.02,145.26L304.02,148.84Z" />
+              <path
+                  android:fillColor="#1C1C1E"
+                  android:fillType="evenOdd"
+                  android:pathData="M330.67,214.03C336.49,214.03 340.74,210.67 340.76,206.07C340.74,202.65 338.61,200.20 334.82,199.65L334.82,199.44C337.74,198.81 339.72,196.60 339.72,193.54C339.72,189.37 336.18,185.97 330.76,185.97C325.42,185.97 321.32,189.13 321.25,193.71L326.00,193.71C326.03,191.41 328.18,189.98 330.72,190.00C333.24,189.98 334.94,191.54 334.97,193.82C334.94,196.21 332.97,197.79 330.17,197.79L327.73,197.79L327.73,201.60L330.17,201.60C333.58,201.60 335.64,203.34 335.66,205.81C335.64,208.22 333.57,209.87 330.65,209.87C327.88,209.87 325.77,208.44 325.66,206.23L320.67,206.23C320.76,210.84 324.88,214.03 330.67,214.03Z" />
+              <path
+                  android:fillColor="#1C1C1E"
+                  android:fillType="evenOdd"
+                  android:pathData="M302.56,273.59L315.59,273.59L315.59,278.66L320.32,278.66L320.32,273.59L323.83,273.59L323.83,269.52L320.32,269.52L320.32,251.34L314.16,251.34L302.56,269.65L302.56,273.59ZM315.64,269.52L307.63,269.52L307.63,269.30L315.44,256.95L315.64,256.95L315.64,269.52Z" />
+              <path
+                  android:fillColor="#1C1C1E"
+                  android:fillType="evenOdd"
+                  android:pathData="M265.58,326.43C271.37,326.43 275.38,322.51 275.40,317.09C275.38,311.82 271.75,308.04 266.79,308.01C264.56,308.04 262.60,308.91 261.59,310.12L261.45,310.12L262.21,302.88L273.97,302.88L273.97,298.74L258.13,298.74L256.70,312.81L261.17,313.55C262.08,312.54 263.80,311.86 265.45,311.87C268.44,311.90 270.61,314.10 270.61,317.20C270.61,320.25 268.52,322.41 265.58,322.41C263.11,322.41 261.13,320.88 260.98,318.63L256.18,318.63C256.31,323.16 260.24,326.43 265.58,326.43Z" />
+              <path
+                  android:fillColor="#1C1C1E"
+                  android:fillType="evenOdd"
+                  android:pathData="M200.95,344.06C206.81,344.09 210.78,340.04 210.76,334.65C210.78,329.47 207.09,325.74 202.30,325.74C199.37,325.74 196.79,327.17 195.49,329.53L195.29,329.53C195.31,323.70 197.40,320.19 201.21,320.21C203.55,320.19 205.12,321.57 205.64,323.74L210.52,323.74C209.91,319.24 206.34,315.93 201.21,315.91C194.64,315.93 190.49,321.38 190.49,330.80C190.49,340.83 195.68,344.02 200.95,344.06ZM200.91,340.04C197.98,340.04 195.83,337.65 195.83,334.78C195.85,331.92 198.06,329.50 200.95,329.50C203.84,329.50 205.98,331.83 205.96,334.76C205.98,337.73 203.79,340.04 200.91,340.04Z" />
+              <path
+                  android:fillColor="#1C1C1E"
+                  android:fillType="evenOdd"
+                  android:pathData="M128.05,326.24L133.21,326.24L144.79,303.15L144.79,298.93L126.20,298.93L126.20,303.07L139.66,303.07L139.66,303.25L128.05,326.24Z" />
+              <path
+                  android:fillColor="#1C1C1E"
+                  android:fillType="evenOdd"
+                  android:pathData="M88.04,279.03C93.96,279.03 98.19,275.76 98.19,271.33C98.19,267.92 95.66,265.07 92.49,264.54L92.49,264.33C95.25,263.74 97.17,261.25 97.18,258.28C97.17,254.09 93.31,250.97 88.04,250.97C82.75,250.97 78.89,254.09 78.91,258.28C78.89,261.25 80.78,263.74 83.59,264.33L83.59,264.54C80.37,265.07 77.87,267.92 77.89,271.33C77.87,275.76 82.08,279.03 88.04,279.03ZM88.04,275.22C84.96,275.22 82.96,273.50 82.99,270.97C82.96,268.38 85.11,266.52 88.04,266.52C90.95,266.52 93.09,268.38 93.10,270.97C93.09,273.50 91.10,275.22 88.04,275.22ZM88.04,262.77C85.52,262.76 83.70,261.14 83.72,258.77C83.70,256.41 85.46,254.83 88.04,254.85C90.60,254.83 92.34,256.41 92.38,258.77C92.34,261.14 90.55,262.76 88.04,262.77Z" />
+              <path
+                  android:fillColor="#1C1C1E"
+                  android:fillType="evenOdd"
+                  android:pathData="M70.34,185.93C64.42,185.92 60.49,189.96 60.51,195.36C60.49,200.53 64.16,204.25 68.97,204.25C71.92,204.25 74.48,202.82 75.78,200.46L75.98,200.46C75.98,206.32 73.85,209.81 70.07,209.80C67.73,209.81 66.13,208.44 65.63,206.29L60.73,206.29C61.33,210.78 64.91,214.08 70.07,214.08C76.63,214.08 80.79,208.63 80.77,199.20C80.79,189.18 75.59,185.99 70.34,185.93ZM70.38,189.96C73.30,189.94 75.43,192.37 75.43,195.21C75.43,198.07 73.18,200.50 70.31,200.50C67.41,200.50 65.30,198.20 65.30,195.27C65.30,192.28 67.47,189.94 70.38,189.96Z" />
+              <path
+                  android:fillColor="#1C1C1E"
+                  android:fillType="evenOdd"
+                  android:pathData="M81.66,121.27L76.94,121.27L70.17,125.63L70.17,130.18L76.55,126.07L76.70,126.07L76.70,148.58L81.66,148.58L81.66,121.27ZM94.90,149.10C101.49,149.10 105.43,143.93 105.44,134.94C105.43,126.04 101.47,120.90 94.90,120.90C88.36,120.90 84.40,126.04 84.40,134.94C84.38,143.90 88.31,149.10 94.90,149.10ZM94.90,144.94C91.49,144.92 89.38,141.51 89.41,134.94C89.39,128.45 91.51,125.02 94.90,125.02C98.30,125.02 100.43,128.45 100.45,134.94C100.43,141.51 98.32,144.92 94.90,144.94Z" />
+              <path
+                  android:fillColor="#1C1C1E"
+                  android:fillType="evenOdd"
+                  android:pathData="M134.15,73.76L129.43,73.76L122.66,78.12L122.66,82.67L129.04,78.56L129.19,78.56L129.19,101.07L134.15,101.07L134.15,73.76ZM148.12,73.76L143.40,73.76L136.63,78.12L136.63,82.67L143.01,78.56L143.16,78.56L143.16,101.07L148.12,101.07L148.12,73.76Z" />
+              <path
+                  android:fillColor="#1C1C1E"
+                  android:fillType="evenOdd"
+                  android:pathData="M195.10,56.53L190.39,56.53L183.62,60.89L183.62,65.44L190.00,61.33L190.15,61.33L190.15,83.84L195.10,83.84L195.10,56.53ZM198.42,83.84L217.16,83.84L217.16,79.70L205.25,79.70L205.25,79.52L209.98,74.74C215.25,69.65 216.72,67.14 216.75,64.07C216.72,59.52 213.01,56.16 207.53,56.16C202.08,56.16 198.24,59.52 198.29,64.69L202.99,64.69C202.95,61.93 204.71,60.16 207.46,60.19C210.04,60.16 211.97,61.76 211.99,64.32C211.97,66.62 210.60,68.24 207.91,70.96L198.42,80.26L198.42,83.84Z" />
+          </vector>
+          EOF_FILE
+
+          mkdir -p "app/src/main/res/drawable"
+          cat << 'EOF_FILE' > "app/src/main/res/drawable/hand_hour_dark.xml"
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="800dp"
+              android:height="800dp"
+              android:viewportWidth="400"
+              android:viewportHeight="400">
+              <path
+                  android:strokeColor="#FFFFFF"
+                  android:strokeWidth="5.2"
+                  android:strokeLineCap="round"
+                  android:pathData="M200,200 L200,168" />
+              <path
+                  android:strokeColor="#FFFFFF"
+                  android:strokeWidth="13.5"
+                  android:strokeLineCap="round"
+                  android:pathData="M200,170 L200,98" />
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:pathData="M200,190.5 A9.5,9.5 0 1,1 200,209.5 A9.5,9.5 0 1,1 200,190.5 Z" />
+          </vector>
+          EOF_FILE
+
+          mkdir -p "app/src/main/res/drawable"
+          cat << 'EOF_FILE' > "app/src/main/res/drawable/hand_hour_light.xml"
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="800dp"
+              android:height="800dp"
+              android:viewportWidth="400"
+              android:viewportHeight="400">
+              <path
+                  android:strokeColor="#1C1C1E"
+                  android:strokeWidth="5.2"
+                  android:strokeLineCap="round"
+                  android:pathData="M200,200 L200,168" />
+              <path
+                  android:strokeColor="#1C1C1E"
+                  android:strokeWidth="13.5"
+                  android:strokeLineCap="round"
+                  android:pathData="M200,170 L200,98" />
+              <path
+                  android:fillColor="#1C1C1E"
+                  android:pathData="M200,190.5 A9.5,9.5 0 1,1 200,209.5 A9.5,9.5 0 1,1 200,190.5 Z" />
+          </vector>
+          EOF_FILE
+
+          mkdir -p "app/src/main/res/drawable"
+          cat << 'EOF_FILE' > "app/src/main/res/drawable/hand_minute_dark.xml"
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="800dp"
+              android:height="800dp"
+              android:viewportWidth="400"
+              android:viewportHeight="400">
+              <path
+                  android:strokeColor="#FFFFFF"
+                  android:strokeWidth="5.2"
+                  android:strokeLineCap="round"
+                  android:pathData="M200,200 L200,168" />
+              <path
+                  android:strokeColor="#FFFFFF"
+                  android:strokeWidth="12.0"
+                  android:strokeLineCap="round"
+                  android:pathData="M200,170 L200,36" />
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:pathData="M200,190.5 A9.5,9.5 0 1,1 200,209.5 A9.5,9.5 0 1,1 200,190.5 Z" />
+          </vector>
+          EOF_FILE
+
+          mkdir -p "app/src/main/res/drawable"
+          cat << 'EOF_FILE' > "app/src/main/res/drawable/hand_minute_light.xml"
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="800dp"
+              android:height="800dp"
+              android:viewportWidth="400"
+              android:viewportHeight="400">
+              <path
+                  android:strokeColor="#1C1C1E"
+                  android:strokeWidth="5.2"
+                  android:strokeLineCap="round"
+                  android:pathData="M200,200 L200,168" />
+              <path
+                  android:strokeColor="#1C1C1E"
+                  android:strokeWidth="12.0"
+                  android:strokeLineCap="round"
+                  android:pathData="M200,170 L200,36" />
+              <path
+                  android:fillColor="#1C1C1E"
+                  android:pathData="M200,190.5 A9.5,9.5 0 1,1 200,209.5 A9.5,9.5 0 1,1 200,190.5 Z" />
+          </vector>
+          EOF_FILE
+
+          mkdir -p "app/src/main/res/drawable"
+          cat << 'EOF_FILE' > "app/src/main/res/drawable/hand_second_dark.xml"
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="800dp"
+              android:height="800dp"
+              android:viewportWidth="400"
+              android:viewportHeight="400">
+              <path
+                  android:strokeColor="#F59E23"
+                  android:strokeWidth="2.8"
+                  android:strokeLineCap="round"
+                  android:pathData="M200,236 L200,20" />
+              <path
+                  android:fillColor="#F59E23"
+                  android:pathData="M200,193.8 A6.2,6.2 0 1,1 200,206.2 A6.2,6.2 0 1,1 200,193.8 Z" />
+              <path
+                  android:fillColor="#000000"
+                  android:pathData="M200,197.4 A2.6,2.6 0 1,1 200,202.6 A2.6,2.6 0 1,1 200,197.4 Z" />
+          </vector>
+          EOF_FILE
+
+          mkdir -p "app/src/main/res/drawable"
+          cat << 'EOF_FILE' > "app/src/main/res/drawable/hand_second_light.xml"
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="800dp"
+              android:height="800dp"
+              android:viewportWidth="400"
+              android:viewportHeight="400">
+              <path
+                  android:strokeColor="#F59E23"
+                  android:strokeWidth="2.8"
+                  android:strokeLineCap="round"
+                  android:pathData="M200,236 L200,20" />
+              <path
+                  android:fillColor="#F59E23"
+                  android:pathData="M200,193.8 A6.2,6.2 0 1,1 200,206.2 A6.2,6.2 0 1,1 200,193.8 Z" />
+              <path
+                  android:fillColor="#F2F2F7"
+                  android:pathData="M200,197.4 A2.6,2.6 0 1,1 200,202.6 A2.6,2.6 0 1,1 200,197.4 Z" />
+          </vector>
+          EOF_FILE
+
+          mkdir -p "app/src/main/res/layout"
+          cat << 'EOF_FILE' > "app/src/main/res/layout/widget_dark.xml"
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:id="@+id/widget_root"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="horizontal"
+              android:weightSum="2"
+              android:padding="10dp"
+              android:background="@drawable/bg_dark">
+          
+              <FrameLayout
+                  android:id="@+id/clock_tap_zone"
+                  android:layout_width="0dp"
+                  android:layout_height="match_parent"
+                  android:layout_weight="1"
+                  android:padding="4dp">
+          
+                  <AnalogClock
+                      android:id="@+id/analog_clock"
+                      android:layout_width="match_parent"
+                      android:layout_height="match_parent"
+                      android:layout_gravity="center"
+                      android:dial="@drawable/dial_dark"
+                      android:hand_hour="@drawable/hand_hour_dark"
+                      android:hand_minute="@drawable/hand_minute_dark"
+                      android:hand_second="@drawable/hand_second_dark" />
+              </FrameLayout>
+          
+              <FrameLayout
+                  android:id="@+id/calendar_tap_zone"
+                  android:layout_width="0dp"
+                  android:layout_height="match_parent"
+                  android:layout_weight="1"
+                  android:padding="4dp">
+          
+                  <ImageView
+                      android:id="@+id/calendar_image"
+                      android:layout_width="match_parent"
+                      android:layout_height="match_parent"
+                      android:layout_gravity="center"
+                      android:scaleType="fitCenter"
+                      android:contentDescription="@string/app_name" />
+              </FrameLayout>
+          </LinearLayout>
+          EOF_FILE
+
+          mkdir -p "app/src/main/res/layout"
+          cat << 'EOF_FILE' > "app/src/main/res/layout/widget_light.xml"
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:id="@+id/widget_root"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="horizontal"
+              android:weightSum="2"
+              android:padding="10dp"
+              android:background="@drawable/bg_light">
+          
+              <FrameLayout
+                  android:id="@+id/clock_tap_zone"
+                  android:layout_width="0dp"
+                  android:layout_height="match_parent"
+                  android:layout_weight="1"
+                  android:padding="4dp">
+          
+                  <AnalogClock
+                      android:id="@+id/analog_clock"
+                      android:layout_width="match_parent"
+                      android:layout_height="match_parent"
+                      android:layout_gravity="center"
+                      android:dial="@drawable/dial_light"
+                      android:hand_hour="@drawable/hand_hour_light"
+                      android:hand_minute="@drawable/hand_minute_light"
+                      android:hand_second="@drawable/hand_second_light" />
+              </FrameLayout>
+          
+              <FrameLayout
+                  android:id="@+id/calendar_tap_zone"
+                  android:layout_width="0dp"
+                  android:layout_height="match_parent"
+                  android:layout_weight="1"
+                  android:padding="4dp">
+          
+                  <ImageView
+                      android:id="@+id/calendar_image"
+                      android:layout_width="match_parent"
+                      android:layout_height="match_parent"
+                      android:layout_gravity="center"
+                      android:scaleType="fitCenter"
+                      android:contentDescription="@string/app_name" />
+              </FrameLayout>
+          </LinearLayout>
+          EOF_FILE
+
+          mkdir -p "app/src/main/res/layout"
+          cat << 'EOF_FILE' > "app/src/main/res/layout/widget_trans_light.xml"
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:id="@+id/widget_root"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="horizontal"
+              android:weightSum="2"
+              android:padding="10dp"
+              android:background="@drawable/bg_transparent">
+          
+              <FrameLayout
+                  android:id="@+id/clock_tap_zone"
+                  android:layout_width="0dp"
+                  android:layout_height="match_parent"
+                  android:layout_weight="1"
+                  android:padding="4dp">
+          
+                  <AnalogClock
+                      android:id="@+id/analog_clock"
+                      android:layout_width="match_parent"
+                      android:layout_height="match_parent"
+                      android:layout_gravity="center"
+                      android:dial="@drawable/dial_dark"
+                      android:hand_hour="@drawable/hand_hour_dark"
+                      android:hand_minute="@drawable/hand_minute_dark"
+                      android:hand_second="@drawable/hand_second_dark" />
+              </FrameLayout>
+          
+              <FrameLayout
+                  android:id="@+id/calendar_tap_zone"
+                  android:layout_width="0dp"
+                  android:layout_height="match_parent"
+                  android:layout_weight="1"
+                  android:padding="4dp">
+          
+                  <ImageView
+                      android:id="@+id/calendar_image"
+                      android:layout_width="match_parent"
+                      android:layout_height="match_parent"
+                      android:layout_gravity="center"
+                      android:scaleType="fitCenter"
+                      android:contentDescription="@string/app_name" />
+              </FrameLayout>
+          </LinearLayout>
+          EOF_FILE
+
+          mkdir -p "app/src/main/res/layout"
+          cat << 'EOF_FILE' > "app/src/main/res/layout/widget_trans_dark.xml"
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:id="@+id/widget_root"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="horizontal"
+              android:weightSum="2"
+              android:padding="10dp"
+              android:background="@drawable/bg_transparent">
+          
+              <FrameLayout
+                  android:id="@+id/clock_tap_zone"
+                  android:layout_width="0dp"
+                  android:layout_height="match_parent"
+                  android:layout_weight="1"
+                  android:padding="4dp">
+          
+                  <AnalogClock
+                      android:id="@+id/analog_clock"
+                      android:layout_width="match_parent"
+                      android:layout_height="match_parent"
+                      android:layout_gravity="center"
+                      android:dial="@drawable/dial_light"
+                      android:hand_hour="@drawable/hand_hour_light"
+                      android:hand_minute="@drawable/hand_minute_light"
+                      android:hand_second="@drawable/hand_second_light" />
+              </FrameLayout>
+          
+              <FrameLayout
+                  android:id="@+id/calendar_tap_zone"
+                  android:layout_width="0dp"
+                  android:layout_height="match_parent"
+                  android:layout_weight="1"
+                  android:padding="4dp">
+          
+                  <ImageView
+                      android:id="@+id/calendar_image"
+                      android:layout_width="match_parent"
+                      android:layout_height="match_parent"
+                      android:layout_gravity="center"
+                      android:scaleType="fitCenter"
+                      android:contentDescription="@string/app_name" />
+              </FrameLayout>
+          </LinearLayout>
+          EOF_FILE
+
+          mkdir -p "app/src/main/java/com/standby/clockwidget"
+          cat << 'EOF_FILE' > "app/src/main/java/com/standby/clockwidget/CalendarRenderer.java"
+          package com.standby.clockwidget;
+          
+          import android.graphics.Bitmap;
+          import android.graphics.Canvas;
+          import android.graphics.Color;
+          import android.graphics.Paint;
+          import android.graphics.Typeface;
+          import java.text.DateFormatSymbols;
+          import java.util.Calendar;
+          import java.util.Locale;
+          
+          public class CalendarRenderer {
+          
+              private static final int SIZE = 800;
+              private static final int COLOR_ACCENT_RED = Color.parseColor("#F04942");
+              private static final int COLOR_SUNDAY_GREY = Color.parseColor("#8E8E93");
+              private static final int COLOR_TEXT_LIGHT = Color.parseColor("#FFFFFF");
+              private static final int COLOR_TEXT_DARK = Color.parseColor("#1C1C1E");
+          
+              public static Bitmap renderCalendar(int themeMode) {
+                  Bitmap bitmap = Bitmap.createBitmap(SIZE, SIZE, Bitmap.Config.ARGB_8888);
+                  Canvas canvas = new Canvas(bitmap);
+          
+                  boolean useDarkText = (themeMode == StandByWidgetProvider.MODE_LIGHT
+                          || themeMode == StandByWidgetProvider.MODE_TRANS_DARK);
+                  int primaryTextColor = useDarkText ? COLOR_TEXT_DARK : COLOR_TEXT_LIGHT;
+          
+                  Calendar now = Calendar.getInstance();
+                  int currentYear = now.get(Calendar.YEAR);
+                  int currentMonth = now.get(Calendar.MONTH);
+                  int todayDay = now.get(Calendar.DAY_OF_MONTH);
+          
+                  String[] months = new DateFormatSymbols(Locale.US).getMonths();
+                  String monthTitle = months[currentMonth].toUpperCase(Locale.US);
+          
+                  Calendar firstOfMonth = (Calendar) now.clone();
+                  firstOfMonth.set(Calendar.DAY_OF_MONTH, 1);
+                  int startCol = firstOfMonth.get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY; // 0=Sun .. 6=Sat
+                  if (startCol < 0) {
+                      startCol += 7;
+                  }
+                  int daysInMonth = firstOfMonth.getActualMaximum(Calendar.DAY_OF_MONTH);
+                  int totalCells = startCol + daysInMonth;
+                  int numRows = (int) Math.ceil(totalCells / 7.0);
+          
+                  float colStep = 94.0f;
+                  float rowStep = 82.0f;
+                  float gridCenterX = 400.0f;
+                  float col0X = gridCenterX - 3.0f * colStep;
+          
+                  // Dynamically center the entire calendar block around Y = 400
+                  float headerToDowGap = 82.0f;
+                  float dowToRow0Gap = 84.0f;
+                  float totalVerticalSpan = headerToDowGap + dowToRow0Gap + (numRows - 1) * rowStep;
+                  float monthHeaderY = 400.0f - (totalVerticalSpan / 2.0f);
+                  float dowHeaderY = monthHeaderY + headerToDowGap;
+                  float row0Y = dowHeaderY + dowToRow0Gap;
+          
+                  // 1. Month Title (e.g., JULY)
+                  Paint monthPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
+                  monthPaint.setColor(COLOR_ACCENT_RED);
+                  monthPaint.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
+                  monthPaint.setTextSize(44.0f);
+                  monthPaint.setTextAlign(Paint.Align.LEFT);
+                  monthPaint.setLetterSpacing(0.03f);
+                  Paint.FontMetrics monthFm = monthPaint.getFontMetrics();
+                  float monthBaseline = monthHeaderY - (monthFm.ascent + monthFm.descent) / 2.0f;
+                  canvas.drawText(monthTitle, col0X - 16.0f, monthBaseline, monthPaint);
+          
+                  // 2. Day of Week Row (S M T W T F S)
+                  String[] dowLabels = {"S", "M", "T", "W", "T", "F", "S"};
+                  Paint dowPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
+                  dowPaint.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+                  dowPaint.setTextSize(36.0f);
+                  dowPaint.setTextAlign(Paint.Align.CENTER);
+                  Paint.FontMetrics dowFm = dowPaint.getFontMetrics();
+                  float dowBaseline = dowHeaderY - (dowFm.ascent + dowFm.descent) / 2.0f;
+          
+                  for (int c = 0; c < 7; c++) {
+                      float cx = col0X + c * colStep;
+                      dowPaint.setColor(c == 0 ? COLOR_SUNDAY_GREY : primaryTextColor);
+                      canvas.drawText(dowLabels[c], cx, dowBaseline, dowPaint);
+                  }
+          
+                  // 3. Date Grid (1 .. daysInMonth)
+                  Paint dayPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
+                  dayPaint.setTextSize(37.0f);
+                  dayPaint.setTextAlign(Paint.Align.CENTER);
+                  Typeface mediumTf = Typeface.create("sans-serif-medium", Typeface.NORMAL);
+                  Typeface boldTf = Typeface.create("sans-serif", Typeface.BOLD);
+          
+                  Paint circlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                  circlePaint.setStyle(Paint.Style.FILL);
+                  circlePaint.setColor(COLOR_ACCENT_RED);
+          
+                  for (int day = 1; day <= daysInMonth; day++) {
+                      int cellIndex = startCol + (day - 1);
+                      int r = cellIndex / 7;
+                      int c = cellIndex % 7;
+          
+                      float cx = col0X + c * colStep;
+                      float cy = row0Y + r * rowStep;
+          
+                      if (day == todayDay) {
+                          canvas.drawCircle(cx, cy, 41.0f, circlePaint);
+                          dayPaint.setTypeface(boldTf);
+                          dayPaint.setColor(COLOR_TEXT_LIGHT);
+                      } else {
+                          dayPaint.setTypeface(mediumTf);
+                          dayPaint.setColor(c == 0 ? COLOR_SUNDAY_GREY : primaryTextColor);
+                      }
+          
+                      Paint.FontMetrics dayFm = dayPaint.getFontMetrics();
+                      float dayBaseline = cy - (dayFm.ascent + dayFm.descent) / 2.0f;
+                      canvas.drawText(String.valueOf(day), cx, dayBaseline, dayPaint);
+                  }
+          
+                  return bitmap;
+              }
+          }
+          EOF_FILE
+
+          mkdir -p "app/src/main/java/com/standby/clockwidget"
+          cat << 'EOF_FILE' > "app/src/main/java/com/standby/clockwidget/StandByWidgetProvider.java"
+          package com.standby.clockwidget;
+          
+          import android.app.AlarmManager;
+          import android.app.PendingIntent;
+          import android.appwidget.AppWidgetManager;
+          import android.appwidget.AppWidgetProvider;
+          import android.content.ComponentName;
+          import android.content.Context;
+          import android.content.Intent;
+          import android.content.SharedPreferences;
+          import android.graphics.Bitmap;
+          import android.net.Uri;
+          import android.os.Bundle;
+          import android.provider.CalendarContract;
+          import android.widget.RemoteViews;
+          import android.widget.Toast;
+          import java.util.Calendar;
+          
+          public class StandByWidgetProvider extends AppWidgetProvider {
+          
+              public static final String ACTION_CYCLE_THEME = "com.standby.clockwidget.ACTION_CYCLE_THEME";
+              public static final String ACTION_OPEN_CALENDAR = "com.standby.clockwidget.ACTION_OPEN_CALENDAR";
+              public static final String EXTRA_WIDGET_ID = "extra_widget_id";
+          
+              public static final String PREFS_NAME = "StandByWidgetPrefs";
+              public static final String KEY_GLOBAL_THEME = "global_theme_mode";
+              public static final String KEY_WIDGET_PREFIX = "widget_theme_";
+          
+              public static final int MODE_DARK = 0;
+              public static final int MODE_LIGHT = 1;
+              public static final int MODE_TRANS_LIGHT = 2;
+              public static final int MODE_TRANS_DARK = 3;
+          
+              @Override
+              public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
+                  for (int appWidgetId : appWidgetIds) {
+                      updateSingleWidget(context, appWidgetManager, appWidgetId);
+                  }
+                  scheduleMidnightUpdate(context);
+              }
+          
+              @Override
+              public void onAppWidgetOptionsChanged(Context context, AppWidgetManager appWidgetManager,
+                                                    int appWidgetId, Bundle newOptions) {
+                  super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions);
+                  updateSingleWidget(context, appWidgetManager, appWidgetId);
+              }
+          
+              @Override
+              public void onReceive(Context context, Intent intent) {
+                  super.onReceive(context, intent);
+                  if (intent == null || intent.getAction() == null) {
+                      return;
+                  }
+          
+                  String action = intent.getAction();
+                  AppWidgetManager mgr = AppWidgetManager.getInstance(context);
+                  ComponentName cn = new ComponentName(context, StandByWidgetProvider.class);
+                  int[] allIds = mgr.getAppWidgetIds(cn);
+          
+                  if (ACTION_CYCLE_THEME.equals(action)) {
+                      int widgetId = intent.getIntExtra(EXTRA_WIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
+                      SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                      int currentMode = getThemeMode(context, widgetId);
+                      int nextMode = (currentMode + 1) % 4;
+          
+                      SharedPreferences.Editor editor = prefs.edit();
+                      editor.putInt(KEY_GLOBAL_THEME, nextMode);
+                      if (widgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                          editor.putInt(KEY_WIDGET_PREFIX + widgetId, nextMode);
+                      }
+                      for (int id : allIds) {
+                          editor.putInt(KEY_WIDGET_PREFIX + id, nextMode);
+                      }
+                      editor.apply();
+          
+                      for (int id : allIds) {
+                          updateSingleWidget(context, mgr, id);
+                      }
+                  } else if (ACTION_OPEN_CALENDAR.equals(action)) {
+                      for (int id : allIds) {
+                          updateSingleWidget(context, mgr, id);
+                      }
+                      openNativeCalendar(context);
+                  } else if (Intent.ACTION_DATE_CHANGED.equals(action)
+                          || Intent.ACTION_TIME_SET.equals(action)
+                          || Intent.ACTION_TIMEZONE_CHANGED.equals(action)
+                          || Intent.ACTION_LOCALE_CHANGED.equals(action)) {
+                      for (int id : allIds) {
+                          updateSingleWidget(context, mgr, id);
+                      }
+                      scheduleMidnightUpdate(context);
+                  }
+              }
+          
+              public static int getThemeMode(Context context, int appWidgetId) {
+                  SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                  int globalMode = prefs.getInt(KEY_GLOBAL_THEME, MODE_DARK);
+                  if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID) {
+                      return globalMode;
+                  }
+                  return prefs.getInt(KEY_WIDGET_PREFIX + appWidgetId, globalMode);
+              }
+          
+              public static void setThemeModeForAll(Context context, int mode) {
+                  AppWidgetManager mgr = AppWidgetManager.getInstance(context);
+                  ComponentName cn = new ComponentName(context, StandByWidgetProvider.class);
+                  int[] allIds = mgr.getAppWidgetIds(cn);
+          
+                  SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                  SharedPreferences.Editor editor = prefs.edit();
+                  editor.putInt(KEY_GLOBAL_THEME, mode);
+                  for (int id : allIds) {
+                      editor.putInt(KEY_WIDGET_PREFIX + id, mode);
+                  }
+                  editor.apply();
+          
+                  for (int id : allIds) {
+                      updateSingleWidget(context, mgr, id);
+                  }
+              }
+          
+              public static void updateSingleWidget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
+                  int themeMode = getThemeMode(context, appWidgetId);
+          
+                  int layoutId;
+                  switch (themeMode) {
+                      case MODE_LIGHT:
+                          layoutId = R.layout.widget_light;
+                          break;
+                      case MODE_TRANS_LIGHT:
+                          layoutId = R.layout.widget_trans_light;
+                          break;
+                      case MODE_TRANS_DARK:
+                          layoutId = R.layout.widget_trans_dark;
+                          break;
+                      case MODE_DARK:
+                      default:
+                          layoutId = R.layout.widget_dark;
+                          break;
+                  }
+          
+                  RemoteViews views = new RemoteViews(context.getPackageName(), layoutId);
+          
+                  // Render high-DPI monthly calendar matching tablet local date and selected theme
+                  Bitmap calendarBitmap = CalendarRenderer.renderCalendar(themeMode);
+                  views.setImageViewBitmap(R.id.calendar_image, calendarBitmap);
+          
+                  // Left side tap -> Cycle Theme Mode (Dark -> Light -> Transparent Light -> Transparent Dark)
+                  Intent cycleIntent = new Intent(context, StandByWidgetProvider.class);
+                  cycleIntent.setAction(ACTION_CYCLE_THEME);
+                  cycleIntent.putExtra(EXTRA_WIDGET_ID, appWidgetId);
+                  PendingIntent cyclePendingIntent = PendingIntent.getBroadcast(
+                          context,
+                          appWidgetId + 1000,
+                          cycleIntent,
+                          PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                  );
+                  views.setOnClickPendingIntent(R.id.clock_tap_zone, cyclePendingIntent);
+                  views.setOnClickPendingIntent(R.id.analog_clock, cyclePendingIntent);
+          
+                  // Right side tap -> Refresh Calendar & Open Native Tablet Calendar App
+                  Intent calIntent = new Intent(context, StandByWidgetProvider.class);
+                  calIntent.setAction(ACTION_OPEN_CALENDAR);
+                  calIntent.putExtra(EXTRA_WIDGET_ID, appWidgetId);
+                  PendingIntent calPendingIntent = PendingIntent.getBroadcast(
+                          context,
+                          appWidgetId + 2000,
+                          calIntent,
+                          PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                  );
+                  views.setOnClickPendingIntent(R.id.calendar_tap_zone, calPendingIntent);
+                  views.setOnClickPendingIntent(R.id.calendar_image, calPendingIntent);
+          
+                  appWidgetManager.updateAppWidget(appWidgetId, views);
+              }
+          
+              private void openNativeCalendar(Context context) {
+                  try {
+                      Uri.Builder builder = CalendarContract.CONTENT_URI.buildUpon();
+                      builder.appendPath("time");
+                      builder.appendPath(String.valueOf(System.currentTimeMillis()));
+                      Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+                      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      context.startActivity(intent);
+                  } catch (Exception e) {
+                      try {
+                          Intent fallback = Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_CALENDAR);
+                          fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                          context.startActivity(fallback);
+                      } catch (Exception ignored) {
+                          Toast.makeText(context, "Calendar refreshed", Toast.LENGTH_SHORT).show();
+                      }
+                  }
+              }
+          
+              private void scheduleMidnightUpdate(Context context) {
+                  try {
+                      AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+                      if (alarmManager == null) {
+                          return;
+                      }
+                      Calendar midnight = Calendar.getInstance();
+                      midnight.add(Calendar.DAY_OF_YEAR, 1);
+                      midnight.set(Calendar.HOUR_OF_DAY, 0);
+                      midnight.set(Calendar.MINUTE, 0);
+                      midnight.set(Calendar.SECOND, 2);
+                      midnight.set(Calendar.MILLISECOND, 0);
+          
+                      Intent intent = new Intent(context, StandByWidgetProvider.class);
+                      intent.setAction(Intent.ACTION_DATE_CHANGED);
+                      PendingIntent pi = PendingIntent.getBroadcast(
+                              context,
+                              9999,
+                              intent,
+                              PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                      );
+                      alarmManager.set(AlarmManager.RTC, midnight.getTimeInMillis(), pi);
+                  } catch (Exception ignored) {
+                  }
+              }
+          }
+          EOF_FILE
+
+          mkdir -p "app/src/main/java/com/standby/clockwidget"
+          cat << 'EOF_FILE' > "app/src/main/java/com/standby/clockwidget/MainActivity.java"
+          package com.standby.clockwidget;
+          
+          import android.app.Activity;
+          import android.appwidget.AppWidgetManager;
+          import android.content.ComponentName;
+          import android.graphics.Color;
+          import android.graphics.Typeface;
+          import android.graphics.drawable.GradientDrawable;
+          import android.os.Bundle;
+          import android.view.Gravity;
+          import android.view.View;
+          import android.widget.Button;
+          import android.widget.ImageView;
+          import android.widget.LinearLayout;
+          import android.widget.ScrollView;
+          import android.widget.TextView;
+          import android.widget.Toast;
+          
+          public class MainActivity extends Activity {
+          
+              private TextView statusLabel;
+              private ImageView calendarPreview;
+          
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+          
+                  ScrollView scrollView = new ScrollView(this);
+                  scrollView.setBackgroundColor(Color.parseColor("#0B0F17"));
+                  scrollView.setFillViewport(true);
+          
+                  LinearLayout root = new LinearLayout(this);
+                  root.setOrientation(LinearLayout.VERTICAL);
+                  root.setPadding(dp(28), dp(32), dp(28), dp(32));
+                  root.setGravity(Gravity.CENTER_HORIZONTAL);
+                  scrollView.addView(root);
+          
+                  TextView title = new TextView(this);
+                  title.setText("StandBy Clock & Calendar Widget");
+                  title.setTextColor(Color.WHITE);
+                  title.setTextSize(22f);
+                  title.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
+                  root.addView(title);
+          
+                  TextView subtitle = new TextView(this);
+                  subtitle.setText("Xiaomi Pad 8 (Android 16) • Live Ticking Second Needle");
+                  subtitle.setTextColor(Color.parseColor("#94A3B8"));
+                  subtitle.setTextSize(14f);
+                  subtitle.setPadding(0, dp(6), 0, dp(20));
+                  root.addView(subtitle);
+          
+                  statusLabel = new TextView(this);
+                  statusLabel.setTextColor(Color.parseColor("#F59E23"));
+                  statusLabel.setTextSize(15f);
+                  statusLabel.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+                  statusLabel.setPadding(0, 0, 0, dp(16));
+                  root.addView(statusLabel);
+          
+                  calendarPreview = new ImageView(this);
+                  LinearLayout.LayoutParams prevParams = new LinearLayout.LayoutParams(dp(220), dp(220));
+                  prevParams.bottomMargin = dp(20);
+                  calendarPreview.setLayoutParams(prevParams);
+                  root.addView(calendarPreview);
+          
+                  Button pinBtn = makeButton("Pin Widget to Home Screen", "#F04942", "#FFFFFF");
+                  pinBtn.setOnClickListener(new View.OnClickListener() {
+                      @Override
+                      public void onClick(View v) {
+                          requestPinWidget();
+                      }
+                  });
+                  root.addView(pinBtn);
+          
+                  TextView modeHeading = new TextView(this);
+                  modeHeading.setText("Switch Widget Background Mode (or Tap Clock Face on Home Screen):");
+                  modeHeading.setTextColor(Color.parseColor("#CBD5E1"));
+                  modeHeading.setTextSize(14f);
+                  modeHeading.setPadding(0, dp(18), 0, dp(10));
+                  root.addView(modeHeading);
+          
+                  LinearLayout row1 = new LinearLayout(this);
+                  row1.setOrientation(LinearLayout.HORIZONTAL);
+                  row1.setGravity(Gravity.CENTER);
+                  row1.addView(makeModeButton("1. Dark Mode", StandByWidgetProvider.MODE_DARK));
+                  row1.addView(makeModeButton("2. Light Mode", StandByWidgetProvider.MODE_LIGHT));
+                  root.addView(row1);
+          
+                  LinearLayout row2 = new LinearLayout(this);
+                  row2.setOrientation(LinearLayout.HORIZONTAL);
+                  row2.setGravity(Gravity.CENTER);
+                  row2.addView(makeModeButton("3. Transparent (Light Text)", StandByWidgetProvider.MODE_TRANS_LIGHT));
+                  row2.addView(makeModeButton("4. Transparent (Dark Text)", StandByWidgetProvider.MODE_TRANS_DARK));
+                  root.addView(row2);
+          
+                  TextView tipBox = new TextView(this);
+                  tipBox.setText("Xiaomi HyperOS Tip:\n• Tap the Clock half of the widget anytime on your home screen to cycle through Dark, Light, and Transparent modes.\n• Tap the Calendar half to refresh and open your Calendar.\n• In App Info -> Battery, select 'No restrictions' so theme switching and midnight date rollover stay instant.");
+                  tipBox.setTextColor(Color.parseColor("#94A3B8"));
+                  tipBox.setTextSize(13f);
+                  tipBox.setPadding(dp(16), dp(20), dp(16), dp(10));
+                  root.addView(tipBox);
+          
+                  setContentView(scrollView);
+                  refreshUi();
+              }
+          
+              private Button makeButton(String text, String bgHex, String fgHex) {
+                  Button b = new Button(this);
+                  b.setText(text);
+                  b.setAllCaps(false);
+                  b.setTextColor(Color.parseColor(fgHex));
+                  b.setTextSize(14f);
+                  GradientDrawable gd = new GradientDrawable();
+                  gd.setColor(Color.parseColor(bgHex));
+                  gd.setCornerRadius(dp(12));
+                  b.setBackground(gd);
+                  LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                          LinearLayout.LayoutParams.WRAP_CONTENT,
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                  );
+                  lp.setMargins(dp(6), dp(6), dp(6), dp(6));
+                  b.setLayoutParams(lp);
+                  b.setPadding(dp(20), dp(12), dp(20), dp(12));
+                  return b;
+              }
+          
+              private Button makeModeButton(String label, final int mode) {
+                  Button b = makeButton(label, "#1E293B", "#F8FAFC");
+                  b.setOnClickListener(new View.OnClickListener() {
+                      @Override
+                      public void onClick(View v) {
+                          StandByWidgetProvider.setThemeModeForAll(MainActivity.this, mode);
+                          refreshUi();
+                          Toast.makeText(MainActivity.this, "Applied: " + label, Toast.LENGTH_SHORT).show();
+                      }
+                  });
+                  return b;
+              }
+          
+              private void refreshUi() {
+                  int mode = StandByWidgetProvider.getThemeMode(this, AppWidgetManager.INVALID_APPWIDGET_ID);
+                  String[] names = {
+                      "Dark Mode (#000000)",
+                      "Light Mode (#F2F2F7)",
+                      "Transparent (White Clock & Text)",
+                      "Transparent (Dark Clock & Text)"
+                  };
+                  statusLabel.setText("Active Mode: " + names[mode % 4]);
+                  calendarPreview.setImageBitmap(CalendarRenderer.renderCalendar(mode));
+                  GradientDrawable previewBg = new GradientDrawable();
+                  previewBg.setCornerRadius(dp(20));
+                  if (mode == StandByWidgetProvider.MODE_LIGHT || mode == StandByWidgetProvider.MODE_TRANS_DARK) {
+                      previewBg.setColor(Color.parseColor("#F2F2F7"));
+                  } else {
+                      previewBg.setColor(Color.parseColor("#000000"));
+                  }
+                  calendarPreview.setBackground(previewBg);
+              }
+          
+              private void requestPinWidget() {
+                  AppWidgetManager mgr = AppWidgetManager.getInstance(this);
+                  ComponentName cn = new ComponentName(this, StandByWidgetProvider.class);
+                  if (mgr.isRequestPinAppWidgetSupported()) {
+                      mgr.requestPinAppWidget(cn, null, null);
+                  } else {
+                      Toast.makeText(this, "Pin from Home Screen -> Widgets -> Android Widgets", Toast.LENGTH_LONG).show();
+                  }
+              }
+          
+              private int dp(int value) {
+                  float density = getResources().getDisplayMetrics().density;
+                  return Math.round(value * density);
+              }
+          }
+          EOF_FILE
+
+      - name: Set up Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Compile Signed APK
+        working-directory: standby_widget_build
+        run: |
+          gradle assembleDebug assembleRelease --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk ../StandByClockWidget.apk
+
+      - name: Upload Ready-to-Install APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: StandByClockWidget-APK
+          path: StandByClockWidget.apk
+          if-no-files-found: error
